@@ -41,6 +41,39 @@ tidy_books_4shingles
 #####################################################
 
 
+# tf-idf
+library(dplyr)
+library(janeaustenr)
+
+book_words <- austen_books() %>%
+        unnest_tokens(word, text) %>%
+        count(book, word, sort = TRUE) %>% rename(word_count_per_book = n)
+book_words
+
+# number_of_books_containing_each_word
+number_of_books_containing_each_word <- book_words %>% count(book, word) %>%
+        group_by(word) %>% count() %>% ungroup() %>% arrange(desc(word)) %>% 
+        rename(number_of_books_containing_word = nn)
+
+# total_words
+total_words_per_book <- book_words %>% 
+        group_by(book) %>% 
+        summarize(total_words_per_book = sum(word_count_per_book))
+total_words_per_book
+
+# find the words most distinctive to each document
+book_words %>% left_join(., total_words_per_book, by = "book") %>%
+        left_join(., number_of_books_containing_each_word, by = "word") %>%
+        bind_tf_idf(term = word, document = book, n = word_count_per_book) %>%
+        mutate(manual_tf = word_count_per_book / total_words_per_book, 
+               manual_idf = log(6 / number_of_books_containing_word),
+               manual_tf_idf = manual_tf * manual_idf) %>%
+        arrange(desc(tf_idf))
+
+
+######################################################################
+
+
 # other functions for stopwords, and word-level sentiment
 # see also sentimentr package for sentence-level sentiment
 
