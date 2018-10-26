@@ -2,6 +2,8 @@ library(tidytext)
 library(janeaustenr)
 library(dplyr)
 library(stringr)
+library(tidyverse)
+library(tm)
 
 # https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html
 # https://tidytextmining.com
@@ -74,8 +76,35 @@ book_words %>% left_join(., total_words_per_book, by = "book") %>%
 ######################################################################
 
 
-# other functions for stopwords, and word-level sentiment
+# sentiments
+# https://www.tidytextmining.com/sentiment.html
+sentiments
+sentiments %>% count(lexicon)
+sentiments %>% filter(word == "abandon")
+
+# stopwords
+stop_words
+stop_words %>% count(lexicon)
+
 # see also sentimentr package for sentence-level sentiment
 
 
+########################################################################
+#########################################################################
+#########################################################################
 
+
+# document-term matrix
+# https://www.tidytextmining.com/dtm.html
+library(topicmodels)
+data("AssociatedPress", package = "topicmodels")
+AssociatedPress
+
+terms <- Terms(AssociatedPress)
+tibble(term = terms) %>% count(term)
+str(terms)
+head(terms)
+
+# can get same tidy count of terms using  tidy function on associated_press dtm
+ap_td <- tidy(AssociatedPress)
+ap_td
