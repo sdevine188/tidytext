@@ -1,9 +1,10 @@
+library(tidyverse)
 library(tidytext)
 library(janeaustenr)
-library(dplyr)
-library(stringr)
-library(tidyverse)
 library(tm)
+
+# https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html
+# https://tidytextmining.com
 
 # https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html
 # https://tidytextmining.com
@@ -44,18 +45,17 @@ tidy_books_4shingles
 
 
 # tf-idf
-library(dplyr)
-library(janeaustenr)
 
 book_words <- austen_books() %>%
-        unnest_tokens(word, text) %>%
-        count(book, word, sort = TRUE) %>% rename(word_count_per_book = n)
+        unnest_tokens(output = word, input = text) %>%
+        count(book, word) %>% arrange(desc(n)) %>% rename(word_count_per_book = n)
 book_words
 
 # number_of_books_containing_each_word
 number_of_books_containing_each_word <- book_words %>% count(book, word) %>%
         group_by(word) %>% count() %>% ungroup() %>% arrange(desc(word)) %>% 
-        rename(number_of_books_containing_word = nn)
+        rename(number_of_books_containing_word = n)
+number_of_books_containing_each_word
 
 # total_words
 total_words_per_book <- book_words %>% 
@@ -63,12 +63,13 @@ total_words_per_book <- book_words %>%
         summarize(total_words_per_book = sum(word_count_per_book))
 total_words_per_book
 
-# find the words most distinctive to each document
+# get tf-idf score for words
+total_number_questions <- nrow(total_words_per_question)
 book_words %>% left_join(., total_words_per_book, by = "book") %>%
         left_join(., number_of_books_containing_each_word, by = "word") %>%
         bind_tf_idf(term = word, document = book, n = word_count_per_book) %>%
         mutate(manual_tf = word_count_per_book / total_words_per_book, 
-               manual_idf = log(6 / number_of_books_containing_word),
+               manual_idf = log(total_number_books / number_of_books_containing_word),
                manual_tf_idf = manual_tf * manual_idf) %>%
         arrange(desc(tf_idf))
 
@@ -78,15 +79,37 @@ book_words %>% left_join(., total_words_per_book, by = "book") %>%
 
 # sentiments
 # https://www.tidytextmining.com/sentiment.html
+# see also sentimentr package, which includes valence shifters: https://github.com/trinker/sentimentr#installation
+# also syushet, which sentimentr wraps: https://cran.r-project.org/web/packages/syuzhet/vignettes/syuzhet-vignette.html
 sentiments
-sentiments %>% count(lexicon)
-sentiments %>% filter(word == "abandon")
+sentiments %>% count(sentiment)
+
+get_sentiments("afinn")
+get_sentiments("bing")
+get_sentiments("nrc")
 
 # stopwords
 stop_words
 stop_words %>% count(lexicon)
 
-# see also sentimentr package for sentence-level sentiment
+# get tidy_books
+tidy_books <- austen_books() %>%
+        group_by(book) %>%
+        mutate(linenumber = row_number(),
+               chapter = cumsum(str_detect(text, regex("^chapter [\\divxlc]", 
+                                                       ignore_case = TRUE)))) %>%
+        ungroup() %>%
+        unnest_tokens(word, text)
+tidy_books
+
+# get positive/negative sentiment
+# note that %/% is integer division, so 5 %/% 2 = 2, which is used to bucket 80 line chunks into each index number
+jane_austen_sentiment <- tidy_books %>%
+        inner_join(get_sentiments("bing")) %>%
+        count(book, index = linenumber %/% 80, sentiment) %>%
+        spread(sentiment, n, fill = 0) %>%
+        mutate(sentiment = positive - negative)
+jane_austen_sentiment
 
 
 ########################################################################
@@ -108,3 +131,9 @@ head(terms)
 # can get same tidy count of terms using  tidy function on associated_press dtm
 ap_td <- tidy(AssociatedPress)
 ap_td
+
+
+
+
+
+
